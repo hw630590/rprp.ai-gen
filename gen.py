@@ -24,8 +24,8 @@ def create_temp_inbox(session):
     payload = {"captcha": None, "domain": None, "prefix": ""}
     try:
         response = session.post(url, headers=headers, json=payload, timeout=10)
-        print("[DEBUG] create_temp_inbox: HTTP", response.status_code)
-        print("[DEBUG] create_temp_inbox response:", response.text)
+        print("⚙️    [DEBUG] create_temp_inbox: HTTP", response.status_code)
+        print("⚙️    [DEBUG] create_temp_inbox response:", response.text)
         response.raise_for_status()
         return response.json()
     except Exception as e:
