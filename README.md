@@ -17,6 +17,9 @@ yeah am back lol as u read its a https://rprp.ai account creator/follower
 🔥ip:port proxy support
 
 
+🔥request based follower
+
+
 🔥and a shit ton more
 
 
