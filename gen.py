@@ -149,64 +149,67 @@ def extract_verification_code(content):
     return None
 
 def worker(task_id, proxy):
-    session = requests.Session()
-    if proxy:
-        session.proxies = {
-            "http": f"http://{proxy}",
-            "https": f"http://{proxy}"
-        }
-        print(f"⚙️   [DEBUG] Using proxy: {proxy}")
-    temp_data = create_temp_inbox(session)
-    if not temp_data:
-        print("⚙️    [DEBUG] Failed to create temp inbox. Exiting worker.")
-        return
-    email_address = temp_data.get('address')
-    token = temp_data.get('token')
-    if not email_address or not token:
-        print("⚙️    [DEBUG] Missing email or token in temp inbox response. Exiting worker.")
-        return
-
-    init_resp = send_initial_verification(session, email_address)
-    if not init_resp:
-        print("⚙️    [DEBUG] Initial verification request failed. Exiting worker.")
-        return
-
-    verification_code = None
-    while not verification_code:
-        inbox = check_inbox(session, token)
-        if inbox and isinstance(inbox, dict):
-            emails = inbox.get('emails', [])
-            for message in emails:
-                content = message.get('html') or message.get('body', '')
-                code = extract_verification_code(content)
-                if code:
-                    verification_code = code
-                    break
-        if not verification_code:
-            print("⚙️    [DEBUG] No verification code found yet. Waiting 5 seconds...")
-            time.sleep(5)
-    print("⚙️    [DEBUG] Verification code extracted:", verification_code)
-
-    password = generate_password()
-    
-    final_resp = send_signup_verification(session, email_address, verification_code, password)
-    if not final_resp:
-        print("⚙️    [DEBUG] Final signup verification request failed. Exiting worker.")
-        return
-
-    access_token = final_resp.get("accessToken", "")
-    with write_lock:
+    while True:
         try:
-            with open("output/accs.txt", "a") as acc_file:
-                acc_file.write(f"{email_address}:{password}\n")
-            if access_token:
-                with open("output/token.txt", "a") as token_file:
-                    token_file.write(f"{access_token}\n")
-        except Exception as e:
-            print("Error writing to file:", e)
-    thread_name = threading.current_thread().name
-    print(f"✅     THREAD-{thread_name} generated {email_address}")
+            session = requests.Session()
+            if proxy:
+                session.proxies = {
+                    "http": f"http://{proxy}",
+                    "https": f"http://{proxy}"
+                }
+                print(f"⚙️   [DEBUG] Using proxy: {proxy}")
 
+            temp_data = create_temp_inbox(session)
+            if not temp_data:
+                raise Exception("Failed to create temp inbox")
+            email_address = temp_data.get('address')
+            token = temp_data.get('token')
+            if not email_address or not token:
+                raise Exception("Missing email or token in temp inbox response")
+
+            init_resp = send_initial_verification(session, email_address)
+            if not init_resp:
+                raise Exception("Initial verification request failed")
+
+            verification_code = None
+            while not verification_code:
+                inbox = check_inbox(session, token)
+                if inbox and isinstance(inbox, dict):
+                    emails = inbox.get('emails', [])
+                    for message in emails:
+                        content = message.get('html') or message.get('body', '')
+                        code = extract_verification_code(content)
+                        if code:
+                            verification_code = code
+                            break
+                if not verification_code:
+                    print("⚙️    [DEBUG] No verification code found yet. Waiting 5 seconds...")
+                    time.sleep(5)
+            print("⚙️    [DEBUG] Verification code extracted:", verification_code)
+
+            password = generate_password()
+            final_resp = send_signup_verification(session, email_address, verification_code, password)
+            if not final_resp:
+                raise Exception("Final signup verification request failed")
+
+            access_token = final_resp.get("accessToken", "")
+            with write_lock:
+                try:
+                    with open("output/accs.txt", "a") as acc_file:
+                        acc_file.write(f"{email_address}:{password}\n")
+                    if access_token:
+                        with open("output/token.txt", "a") as token_file:
+                            token_file.write(f"{access_token}\n")
+                except Exception as e:
+                    print("Error writing to file:", e)
+
+            thread_name = threading.current_thread().name
+            print(f"✅     THREAD-{thread_name} generated {email_address}")
+            break
+        #added some debug stuff
+        except Exception as e:
+            print(f"⚙️    [DEBUG] Error in worker, restarting: {e}")
+            continue
 
 if __name__ == '__main__':
     try:
