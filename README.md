@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/1a1dfb68-24ad-4dfe-a2be-0bb1ec19875d
 
 
 
-# Updates⭐
+# Updates⭐ (we wont be adding these)
 
 ⭐5 stars invite claimer for free credits/account humanizer
 
