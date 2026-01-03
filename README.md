@@ -1,7 +1,7 @@
 # rprp.ai-gen/follower✅
 
 ## this repository was forked from daapiandev. credits to him.
-## suppports proxies that are ip:port or user:pass:ip:port or user:pass@ip:port
+## supports proxies that are ip:port or user:pass:ip:port or user:pass@ip:port
 ## i also added 2 more temp mail providers incase one fails.
 
 # Original Description:
