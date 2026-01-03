@@ -16,12 +16,11 @@ def setup_proxy(proxy_str):
     """Setup proxy from any format"""
     if not proxy_str:
         return None
-    
+
     proxy_str = proxy_str.strip()
-    
-    # BrightData format
+
     if proxy_str.startswith("brd.superproxy.io"):
-        # Format: brd.superproxy.io:33335:brd-customer-hl_xxxx-zone-freemium-ip-ip:pass
+
         if proxy_str.count(':') >= 3:
             parts = proxy_str.split(':')
             if len(parts) >= 4:
@@ -33,32 +32,28 @@ def setup_proxy(proxy_str):
                     "http": f"http://{username}:{password}@{host}:{port}",
                     "https": f"http://{username}:{password}@{host}:{port}"
                 }
-    
-    # Format: user:pass@host:port
+
     if '@' in proxy_str:
         return {
             "http": f"http://{proxy_str}",
             "https": f"http://{proxy_str}"
         }
-    
-    # Format: host:port:user:pass
+
     elif proxy_str.count(':') == 3:
         host, port, user, password = proxy_str.split(':')
         return {
             "http": f"http://{user}:{password}@{host}:{port}",
             "https": f"http://{user}:{password}@{host}:{port}"
         }
-    
-    # Format: host:port
+
     elif proxy_str.count(':') == 1:
         return {
             "http": f"http://{proxy_str}",
             "https": f"http://{proxy_str}"
         }
-    
+
     return None
 
-# TIER 1: tempmail.lol
 def create_temp_inbox_tempmail_lol(session):
     try:
         url = 'https://api.tempmail.lol/v2/inbox/create'
@@ -72,11 +67,11 @@ def create_temp_inbox_tempmail_lol(session):
         payload = {"captcha": None, "domain": None, "prefix": ""}
         response = session.post(url, headers=headers, json=payload, timeout=10)
         print(f"⚙️    [DEBUG] tempmail.lol create: HTTP {response.status_code}")
-        
+
         if response.status_code == 403:
             print("⚠️  tempmail.lol: 403 Forbidden (rate limit)")
             return None
-            
+
         response.raise_for_status()
         data = response.json()
         return {
@@ -105,7 +100,6 @@ def check_inbox_tempmail_lol(session, token):
         print(f"Error in tempmail.lol check: {e}")
         return None
 
-# TIER 2: temp-mail.io
 def create_temp_inbox_temp_mail_io(session):
     try:
         url = 'https://api.internal.temp-mail.io/api/v3/email/new'
@@ -147,7 +141,6 @@ def check_inbox_temp_mail_io(session, email):
         print(f"Error in temp-mail.io check: {e}")
         return None
 
-# TIER 3: inboxes.com
 def create_temp_inbox_inboxes_com(session):
     try:
         url = 'https://inboxes.com/api/v2/inbox'
@@ -160,17 +153,17 @@ def create_temp_inbox_inboxes_com(session):
         }
         response = session.post(url, headers=headers, json={}, timeout=10)
         print(f"⚙️    [DEBUG] inboxes.com create: HTTP {response.status_code}")
-        
+
         if response.status_code != 200:
             print(f"⚠️  inboxes.com: HTTP {response.status_code}")
             return None
-            
+
         data = response.json()
         email = data.get('email') or data.get('address')
         if not email:
             print(f"⚠️  inboxes.com: No email in response: {data}")
             return None
-            
+
         return {
             'email': email,
             'token': data.get('token') or data.get('id'),
@@ -182,7 +175,7 @@ def create_temp_inbox_inboxes_com(session):
 
 def check_inbox_inboxes_com(session, email):
     try:
-        # Clean email for URL - just use username part before @
+
         email_clean = email.split('@')[0]
         url = f'https://inboxes.com/api/v2/inbox/{email_clean}'
         headers = {
@@ -193,18 +186,17 @@ def check_inbox_inboxes_com(session, email):
         }
         response = session.get(url, headers=headers, timeout=10)
         print(f"⚙️     [DEBUG] inboxes.com check: HTTP {response.status_code}")
-        
+
         if response.status_code == 404:
             print("⚠️  inboxes.com: 404 Not Found (maybe wrong endpoint)")
             return {'msgs': []}
-            
+
         response.raise_for_status()
         return response.json()
     except Exception as e:
         print(f"Error in inboxes.com check: {e}")
         return {'msgs': []}
 
-# Original functions
 def send_initial_verification(session, email_address):
     url = "https://rprp.ai/api/auth/email"
     headers = {
@@ -279,41 +271,40 @@ def generate_password():
     return password
 
 def extract_verification_code(content):
-    # Clean the content first
+
     content = str(content).strip()
-    
-    # Try multiple patterns
+
     patterns = [
-        # Look for 6-digit code on its own line
+
         r'\n\s*(\d{6})\s*\n',
-        # Look for code after "verification code" text
+
         r'verification code[:\s]*(\d{6})',
         r'code[:\s]*(\d{6})',
-        # Look for code in <strong> tags
+
         r'<strong[^>]*>(\d+)</strong>',
-        # Generic 6-digit pattern
+
         r'\b(\d{6})\b',
     ]
-    
+
     for pattern in patterns:
         match = re.search(pattern, content, re.IGNORECASE)
         if match:
             code = match.group(1)
             print(f"⚙️    [DEBUG] Found code with pattern '{pattern}': {code}")
             return code
-    
-    # If no match with patterns, look for any sequence of 6 digits
+
     lines = content.split('\n')
     for line in lines:
         line = line.strip()
         if len(line) == 6 and line.isdigit():
             print(f"⚙️    [DEBUG] Found 6-digit line: {line}")
             return line
-    
+
     print(f"⚙️    [DEBUG] No code found in content (length: {len(content)})")
-    if len(content) < 500:  # Only print short content for debugging
+    if len(content) < 500:  
+
         print(f"⚙️    [DEBUG] Content was: {content}")
-    
+
     return None
 
 def create_temp_inbox_with_fallback(session):
@@ -323,7 +314,7 @@ def create_temp_inbox_with_fallback(session):
         ("temp-mail.io", create_temp_inbox_temp_mail_io),
         ("inboxes.com", create_temp_inbox_inboxes_com)
     ]
-    
+
     for service_name, create_func in services:
         print(f"⚙️    [DEBUG] Trying {service_name}...")
         result = create_func(session)
@@ -331,20 +322,20 @@ def create_temp_inbox_with_fallback(session):
             print(f"✅ Created email with {service_name}: {result['email']}")
             return result
         print(f"⚠️  {service_name} failed, trying next...")
-    
+
     return None
 
 def check_temp_inbox(session, inbox_data):
     """Check inbox based on service type"""
     service = inbox_data.get('service')
-    
+
     if service == 'tempmail.lol':
         return check_inbox_tempmail_lol(session, inbox_data.get('token'))
     elif service == 'temp-mail.io':
         return check_inbox_temp_mail_io(session, inbox_data.get('email'))
     elif service == 'inboxes.com':
         return check_inbox_inboxes_com(session, inbox_data.get('email'))
-    
+
     return None
 
 def worker(task_id, proxy_str):
@@ -357,21 +348,19 @@ def worker(task_id, proxy_str):
                     session.proxies = proxies
                     print(f"⚙️   [DEBUG] Using proxy: {proxy_str}")
 
-            # Try services with fallback
             print(f"⚙️    [DEBUG] Creating temp email...")
             inbox_data = create_temp_inbox_with_fallback(session)
-            
+
             if not inbox_data or not inbox_data.get('email'):
                 print(f"❌ All temp email services failed")
                 time.sleep(5)
                 continue
-            
+
             email_address = inbox_data.get('email')
             token = inbox_data.get('token')
             service = inbox_data.get('service')
             print(f"✅ Using email: {email_address} from {service}")
 
-            # Request verification
             print("⚙️    [DEBUG] Sending verification request...")
             init_resp = send_initial_verification(session, email_address)
             if not init_resp:
@@ -379,15 +368,15 @@ def worker(task_id, proxy_str):
                 time.sleep(3)
                 continue
 
-            # Wait for verification code
             verification_code = None
-            for attempt in range(1, 41):  # 40 attempts max
+            for attempt in range(1, 41):  
+
                 print(f"⚙️    [DEBUG] Checking inbox attempt {attempt}/40...")
-                
+
                 inbox = check_temp_inbox(session, inbox_data)
-                
+
                 if inbox:
-                    # Parse response based on service
+
                     if service == 'tempmail.lol':
                         emails = inbox.get('emails', [])
                         print(f"⚙️    [DEBUG] tempmail.lol has {len(emails)} messages")
@@ -399,9 +388,9 @@ def worker(task_id, proxy_str):
                         print(f"⚙️    [DEBUG] inboxes.com has {len(emails)} messages")
                     else:
                         emails = []
-                    
+
                     for i, msg in enumerate(emails):
-                        # Get content from different possible fields
+
                         if service == 'tempmail.lol':
                             content = msg.get('html') or msg.get('body') or ''
                         elif service == 'temp-mail.io':
@@ -410,32 +399,30 @@ def worker(task_id, proxy_str):
                             content = msg.get('html') or msg.get('body') or msg.get('text') or ''
                         else:
                             content = ''
-                        
+
                         if content:
                             print(f"⚙️    [DEBUG] Checking message {i+1}, length: {len(str(content))}")
-                            
-                            # Debug: print first 200 chars if no code found yet
+
                             if attempt > 1 and not verification_code and len(str(content)) < 1000:
                                 print(f"⚙️    [DEBUG] Content preview: {str(content)[:200]}...")
-                            
+
                             code = extract_verification_code(str(content))
                             if code:
                                 verification_code = code
                                 print(f"✅ Found verification code: {verification_code}")
                                 break
-                
+
                 if verification_code:
                     break
-                    
+
                 print("⚙️    [DEBUG] No code found, waiting 5 seconds...")
                 time.sleep(5)
-            
+
             if not verification_code:
                 print(f"❌ No verification code found after 40 attempts")
                 time.sleep(3)
                 continue
-            
-            # Complete signup
+
             password = generate_password()
             final_resp = send_signup_verification(session, email_address, verification_code, password)
             if not final_resp:
@@ -443,19 +430,18 @@ def worker(task_id, proxy_str):
                 time.sleep(3)
                 continue
 
-            # Save account
             with write_lock:
                 with open("output/accs.txt", "a") as f:
                     f.write(f"{email_address}:{password}\n")
-                
+
                 token = final_resp.get("accessToken", "")
                 if token:
                     with open("output/token.txt", "a") as f:
                         f.write(f"{token}\n")
-            
+
             print(f"✅ Success! Created {email_address} using {service}")
             break
-            
+
         except Exception as e:
             print(f"❌ Error: {e}")
             time.sleep(5)
@@ -468,7 +454,7 @@ if __name__ == '__main__':
     except ValueError:
         print("Invalid input. Please enter integer values.")
         exit(1)
-    
+
     proxies = []
     try:
         with open("data/proxies.txt", "r") as f:
@@ -479,7 +465,7 @@ if __name__ == '__main__':
     except Exception as e:
         print("Error reading proxies file:", e)
         proxies = []
-    
+
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = []
         for i in range(total_runs):
