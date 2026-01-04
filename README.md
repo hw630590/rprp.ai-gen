@@ -6,6 +6,7 @@
 
 # my example video
 https://github.com/user-attachments/assets/7d282cb5-381f-4c46-8cd0-ad61719dcd6c
+
 (when it says 'Success!' it means it added an account to the accs.txt file in the output folder)
 
 
