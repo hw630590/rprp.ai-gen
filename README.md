@@ -4,6 +4,10 @@
 ## supports proxies that are ip:port or user:pass:ip:port or user:pass@ip:port
 ## i also added 2 more temp mail providers incase one fails.
 
+# my example video
+https://github.com/user-attachments/assets/7d282cb5-381f-4c46-8cd0-ad61719dcd6c
+
+
 # Original Description:
 
 yeah am back lol as u read its a https://rprp.ai account creator/follower
