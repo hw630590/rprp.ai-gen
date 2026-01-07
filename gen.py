@@ -299,7 +299,8 @@ def send_signup_verification(session, email_address, verification_code, password
     }
     try:
         response = session.post(url, headers=headers, json=payload, timeout=10)
-        print(f"🔧 DEBUG - Signup response: {response.text}")
+        # print(f"🔧 DEBUG - Signup response: {response.text}")
+        # unprint the top line if it doesnt work properly
         return response.json()
     except:
         return None
