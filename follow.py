@@ -1,71 +1,136 @@
-import asyncio
-import aiohttp
+import time
 import json
+import ssl
+import urllib.request
+import urllib.parse
+import random
 
 API_URL = "https://rprp.ai/api/user"
 
-follow_id = input("https://rprp.ai/user/")
+print("--- how to get user id ---")
+print("1. log into your rprp.ai account or make one")
+print("2. visit https://rprp.ai/profile/setting")
+print("3. under where it says 'User#' you will find a 24-character string (e.g. i944t0c5e6e1co5pncfkgwp0)")
+print("4. copy the user id and paste it below")
+print("--------------------------")
+
+follow_id = input("Enter user ID: ")
 
 payload = {
     "action": "switchFollow",
     "data": {"followeeId": follow_id}
 }
 
-payload_str = json.dumps(payload)
-payload_bytes = payload_str.encode('utf-8')
-payload_length = len(payload_bytes)
-
-def create_headers(token: str) -> dict:
+def create_request(token, target_id):
     token = token.strip()
-
-    cookie_str = (
-        "i18n_redirected=en; G_ENABLED_IDPS=google; g_state={\"i_p\":1734046407079,\"i_l\":1}; "
-        "user=%7B%22userInfo%22%3A%7B%22_id%22%3A%2268152ddda9be10eb9b143fe8%22%2C%22email%22%3A%22karoline27983%40disd.pigeonprotocol.com%22%2C%22name%22%3A%22User%231746218461707%22%2C%22bio%22%3A%22%22%2C%22picture%22%3A%22https%3A%2F%2Fcdn.rprp.ai%2Fdata%2Fimages%2Fpicture%2F66dbdbb248af2be8f8c14a78_1731564227284.png%22%2C%22isAdmin%22%3Afalse%2C%22isAffiliate%22%3Afalse%2C%22subscriptionPlan%22%3A%22free%22%2C%22creditPackages%22%3A…Lang%22%3A%22en%22%2C%22isLoadingChatList%22%3Afalse%2C%22isBackgroundEnabled%22%3Atrue%2C%22isFunctionsDisabled%22%3Afalse%2C%22isLoadingChatbotResponse%22%3Afalse%2C%22isLoadingChatHistory%22%3Afalse%2C%22userProfile%22%3A%7B%22userName%22%3A%22%22%2C%22userAvatar%22%3A%22%22%7D%2C%22modelRoute%22%3A%22rprp%22%7D; "
-        "accessToken=eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..IC4bEedVJ5mootogWwojlQ.13Gr0hR3f6Pul20X7v7ogosjfbyT3fUde24xa70_PG6nSQDfqLj_vrSBWbPa3H3JmByKmKZ2CoYHVn4uBPTW1Q.nJHcY9WPr-PB1cvD8ES8ng"
-    )
     
-    return {
+    data = json.dumps(payload).encode('utf-8')
+    
+    headers = {
         "Accept": "application/json",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
         "Accept-Language": "en-US,en;q=0.5",
         "authorization": f"Bearer {token}",
-        "Connection": "keep-alive",
-        "Content-Length": str(payload_length),
         "content-type": "application/json",
-        "Cookie": cookie_str,
-        "DNT": "1",
         "Host": "rprp.ai",
         "Origin": "https://rprp.ai",
-        "Priority": "u=0",
-        "Referer": "https://rprp.ai/user/66dfb8fe6caf970c21849d65",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin",
-        "TE": "trailers",
+        "Referer": f"https://rprp.ai/user/{target_id}",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
     }
+    
+    request = urllib.request.Request(API_URL, data=data, headers=headers, method='POST')
+    return request
 
-async def send_request(session: aiohttp.ClientSession, token: str) -> None:
-    headers = create_headers(token)
+def send_follow(token, attempt=1):
     try:
-        async with session.post(API_URL, headers=headers, data=payload_bytes) as response:
-            print("send follow")
-    except Exception:
-        print("send follow")
-
-async def main():
-    try:
-        with open("output/token.txt", "r", encoding="latin1") as f:
-            tokens = [line.strip() for line in f if line.strip()]
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        
+        request = create_request(token, follow_id)
+        
+        with urllib.request.urlopen(request, context=context) as response:
+            if response.status == 200:
+                return True, "Success"
+            else:
+                return False, f"Status: {response.status}"
+                
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            if attempt <= 3:
+                wait_time = attempt * 5
+                print(f"Rate limited, waiting {wait_time}s...", end=" ", flush=True)
+                time.sleep(wait_time)
+                return send_follow(token, attempt + 1)
+            return False, "Rate limited (max retries)"
+        elif e.code == 401:
+            return False, "Invalid token"
+        elif e.code == 403:
+            return False, "CAPTCHA required"
+        elif e.code == 404:
+            return False, "User not found"
+        elif e.code == 400:
+            return False, "Bad request"
+        elif e.code >= 500:
+            if attempt <= 2:
+                wait_time = attempt * 3
+                print(f"Server error {e.code}, waiting {wait_time}s...", end=" ", flush=True)
+                time.sleep(wait_time)
+                return send_follow(token, attempt + 1)
+            return False, f"Server error {e.code}"
+        else:
+            return False, f"HTTP Error {e.code}: {e.reason}"
+    except urllib.error.URLError as e:
+        return False, f"Connection error"
     except Exception as e:
-        print(f"Error reading token file: {e}")
+        return False, str(e)
+
+def load_tokens():
+    try:
+        with open("output/token.txt", "r") as f:
+            tokens = [line.strip() for line in f if line.strip()]
+        return tokens
+    except:
+        return []
+
+def main():
+    print(f"\n{'='*50}")
+    print("RPRP.AI Auto Follower")
+    print(f"{'='*50}")
+    
+    if not follow_id:
+        print("No user ID provided")
         return
-
-    async with aiohttp.ClientSession() as session:
-        tasks = [send_request(session, token) for token in tokens]
-        await asyncio.gather(*tasks)
-
-    print(f"send ({len(tokens)})")
+    
+    tokens = load_tokens()
+    if not tokens:
+        print("No tokens found in token.txt - try generating some accounts first")
+        return
+    
+    print(f"\nTarget User: {follow_id}")
+    print(f"Loaded Tokens: {len(tokens)}")
+    print(f"\n{'─'*50}")
+    
+    success = 0
+    total = len(tokens)
+    
+    for i, token in enumerate(tokens, 1):
+        print(f"[{i}/{total}] Processing...", end=" ", flush=True)
+        
+        result, message = send_follow(token)
+        
+        if result:
+            print(f"✓ Success")
+            success += 1
+        else:
+            print(f"✗ {message}")
+        
+        if i < total:
+            delay = random.uniform(0.3, 0.6)
+            time.sleep(delay)
+    
+    print(f"\n{'─'*50}")
+    print(f"Results: {success}/{total} successful")
+    print(f"{'='*50}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
