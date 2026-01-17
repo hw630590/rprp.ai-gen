@@ -3,6 +3,7 @@
 ## this repository was forked from daapiandev. credits to him.
 ## supports proxies that are ip:port or user:pass:ip:port or user:pass@ip:port
 ## i also added 2 more temp mail providers incase one fails.
+**view more account generators at https://github.com/OneshotNiko-11?tab=repositories**
 
 # my example video
 https://github.com/user-attachments/assets/7d282cb5-381f-4c46-8cd0-ad61719dcd6c
